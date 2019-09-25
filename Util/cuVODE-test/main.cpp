@@ -566,19 +566,35 @@ int integrate_state_vec_mfin
 				//				BL_PROFILE_VAR_STOP(cvode_timer2);
 
     }
+  else if(use_cvode==2)
+    {
+      amrex::Gpu::streamSynchronize();
+      //      for(int idx=0;idx<neq;idx++)
+      //	{
+	  AMREX_FOR_1D ( neq, idx, {
+	  //	  do_react_vode(dptr+idx, rparh+4*idx, delta_time);
+	  do_react_cuVODE(dptr+idx, rparh+4*idx, delta_time);
+	  	});
+	  //}
+
+      amrex::Gpu::streamSynchronize();
+    }
+#ifndef AMREX_USE_CUDA
   else
     {
       amrex::Gpu::synchronize();
-      for(int idx=0;idx<neq;idx++)
-	{
-	  //AMREX_LAUNCH_DEVICE_LAMBDA ( neq, idx, {
-	  do_react_vode(dptr+idx, rparh+4*idx, delta_time);
-	  //	});
-	}
+      //      for(int idx=0;idx<neq;idx++)
+      //	{
+	  AMREX_FOR_1D ( neq, idx, {
+	      do_react_vode(dptr+idx, rparh+4*idx, delta_time);
+	  	});
+	  //}
 
       amrex::Gpu::synchronize();
     }
+#endif
       amrex::Gpu::streamSynchronize();
+#ifndef NDEBUG
 #ifdef AMREX_USE_CUDA
       N_VPrint_Cuda(u);
       N_VPrint_Cuda(e_orig2);
@@ -586,7 +602,7 @@ int integrate_state_vec_mfin
       N_VPrint_Serial(u);
       N_VPrint_Serial(e_orig2);
 #endif
-#ifndef NDEBUG
+
 				PrintFinalStats(cvode_mem);
 #endif
 

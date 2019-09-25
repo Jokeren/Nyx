@@ -32,23 +32,22 @@ contains
 
   end subroutine init_state
 
+  AMREX_CUDA_FORT_DEVICE subroutine do_react_cuVODE(e_out,rpar,dt) &
+       bind(C, name="do_react_cuVODE")
 
-  subroutine do_react(lo, hi, &
-                      state, s_lo, s_hi, ncomp, dt) bind(C, name="do_react")
-
-    use cuvode_parameters_module, only: MF_ANALYTIC_JAC, MF_NUMERICAL_JAC, VODE_LIW, IOPT, ITASK
+    use cuvode_parameters_module, only: MF_ANALYTIC_JAC, MF_NUMERICAL_JAC, VODE_LIW
     use cuvode_types_module, only: dvode_t, rwork_t
     use cuvode_module, only: dvode
+    use amrex_constants_module, only : rt => amrex_real
 
     implicit none
 
-    integer, intent(in) :: lo(3), hi(3)
-    integer, intent(in) :: s_lo(3), s_hi(3)
-    real(rt), intent(inout) :: state(s_lo(1):s_hi(1), s_lo(2):s_hi(2), s_lo(3):s_hi(3), ncomp)
-    integer, intent(in), value :: ncomp
+    real(rt), intent(inout) :: e_out
+    real(rt), intent(inout) :: rpar(4)
     real(rt), intent(in), value :: dt
 
-    integer         :: ii, jj, kk, n
+    real(rt) :: rpar_init(4)
+    real(rt) :: e_in
 
     ! VODE variables
     type (dvode_t) :: dvode_state
@@ -60,70 +59,70 @@ contains
     ! this is the first call to the problem -- this is what we will want.
     
     integer :: istate
-    
+    integer :: ITASK
+    integer :: IOPT
 
-    !$gpu
-
-    do ii = lo(1), hi(1)
-       do jj = lo(2), hi(2)
-          do kk = lo(3), hi(3)
-
-             ! Use an analytic Jacobian
-             MF_JAC = MF_ANALYTIC_JAC
-
-             ! Set the absolute tolerances
-             dvode_state % atol(1) = 1.d-8
-             dvode_state % atol(2) = 1.d-14
-             dvode_state % atol(3) = 1.d-6
-
-             ! Set the relative tolerances
-             dvode_state % rtol(1) = 1.d-4
-
-             ! We want VODE to re-initialize each time we call it.
-             dvode_state % istate = 1
-
-             ! Initialize work arrays to zero.
-             rwork % CONDOPT = ZERO
-             rwork % YH   = ZERO
-             rwork % WM   = ZERO
-             rwork % EWT  = ZERO
-             rwork % SAVF = ZERO
-             rwork % ACOR = ZERO    
-             iwork(:) = 0
-
-             ! Initialize the integration time and set the final time to dt
-             dvode_state % T = ZERO
-             dvode_state % TOUT = dt
-
-             ! Initialize the initial conditions
-             do n = 1, ncomp
-                dvode_state % y(n) = state(ii, jj, kk, n)
-             enddo
-
-             ! Call the integration routine.
-             call dvode(dvode_state, rwork, iwork, ITASK, IOPT, MF_JAC)
-
-             ! Check if the integration failed
-             if (dvode_state % istate < 0) then
-#ifndef AMREX_USE_CUDA       
-                print *, 'ERROR: integration failed'
-                print *, 'istate = ', dvode_state % istate
-                print *, 'time = ', dvode_state % T
-                print *, 'Y start = ', state(ii, jj, kk, :)
-                print *, 'Y current = ', dvode_state % y
+#ifdef AMREX_USE_CUDA
+    attributes(managed) :: dvode_state, rwork, iwork, MF_JAC, istate, ITASK, IOPT
 #endif
-                stop
-             endif
+
+    rpar_init=rpar
+    e_in=e_out
+
+    ITASK=1
+    IOPT=0
+    
+    ! Use an analytic Jacobian
+    MF_JAC = MF_NUMERICAL_JAC
+
+    ! Set the absolute tolerances
+    dvode_state % atol(1) = 1.d-4*e_in
+
+    ! Set the relative tolerances
+    dvode_state % rtol(1) = 1.d-4
+
+    ! We want VODE to re-initialize each time we call it.
+    dvode_state % istate = 1
+
+    ! Initialize work arrays to zero.
+    rwork % CONDOPT = ZERO
+    rwork % YH   = ZERO
+    rwork % WM   = ZERO
+    rwork % EWT  = ZERO
+    rwork % SAVF = ZERO
+    rwork % ACOR = ZERO    
+    iwork(:) = 0
+
+    ! Initialize the integration time and set the final time to dt
+    dvode_state % T = ZERO
+    dvode_state % TOUT = dt
+
+    ! Initialize the initial conditions
+    dvode_state % y(1) = e_in
+
+    dvode_state % rpar(1) = rpar(1)
+    dvode_state % rpar(2) = rpar(2)
+    dvode_state % rpar(3) = rpar(3)
+    dvode_state % rpar(4) = rpar(4)
+
+    ! Call the integration routine.
+    call dvode(dvode_state, rwork, iwork, ITASK, IOPT, MF_JAC)
+
+    ! Check if the integration failed
+    if (dvode_state % istate < 0) then
+#ifndef AMREX_USE_CUDA       
+       print *, 'ERROR: integration failed'
+       print *, 'istate = ', dvode_state % istate
+       print *, 'time = ', dvode_state % T
+       print *, 'Y start = ', e_in
+       print *, 'Y current = ', dvode_state % y
+#endif
+       stop
+    endif
              
-             ! Store the final result
-             do n = 1, ncomp
-                state(ii, jj, kk, n) = dvode_state % y(n)
-             enddo
+    ! Store the final result
+    e_out = dvode_state % y(1)
 
-          enddo
-       enddo
-    enddo
-
-  end subroutine do_react
+  end subroutine do_react_cuVODE
 
 end module react_zones_module

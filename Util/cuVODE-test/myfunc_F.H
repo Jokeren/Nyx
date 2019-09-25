@@ -26,6 +26,7 @@ extern "C"
 	             double* dptr);
 
   void do_react_vode(amrex::Real* u, amrex::Real* rpar, amrex::Real dt);
+  AMREX_GPU_DEVICE void do_react_cuVODE(amrex::Real* u, amrex::Real* rpar, amrex::Real dt);
 
   AMREX_GPU_DEVICE int RhsFnReal(amrex::Real t, amrex::Real* u, amrex::Real* udot, amrex::Real* rpar, int neq);
   AMREX_GPU_DEVICE void fort_ode_eos_finalize(double* e_out, double* rpar, int neq);

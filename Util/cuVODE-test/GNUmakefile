@@ -28,15 +28,24 @@ include $(AMREX_HOME)/Tools/GNUMake/Make.defs
 include ./Make.package
 include $(AMREX_HOME)/Src/Base/Make.package
 
+#ifeq (($USE_CUDA),FALSE)
 include ../VODE/Make.package
 include ../BLAS/Make.package
+#endif
 
-Blocs += $(AMREX_HOME)/../Microphysics/integration/VODE90/cuVODE/source
+CUVODE_HOME=$(AMREX_HOME)/../Microphysics/integration/VODE90/cuVODE/
 
+#Blocs += $(AMREX_HOME)/../Microphysics/integration/VODE90/cuVODE/source
+
+#include $(AMREX_HOME)/../Microphysics/integration/VODE90/cuVODE/Make.cuVODE
+include Make.cuVODE
+
+#ifeq (($USE_CUDA),FALSE)
 INCLUDE_LOCATIONS += $(Blocs) ../BLAS ../VODE
 VPATH_LOCATIONS   += $(Blocs) ../BLAS ../VODE
+#endif
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.rules
 
-#include $(AMREX_HOME)/../Microphysics/integration/VODE90/cuVODE/Make.cuVODE
+
 
