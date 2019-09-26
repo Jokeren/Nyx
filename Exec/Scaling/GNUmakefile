@@ -31,8 +31,19 @@ USE_HEATCOOL = TRUE
 USE_AGN = FALSE
 USE_CVODE = FALSE
 
+USE_CUVODE = TRUE
+CUVODE_HOME ?= $(AMREX_HOME)/../Microphysics/integration/VODE90/cuVODE/
+#include ../../Source/HeatCool/Make.cuVODE
+
 Bpack := ./Make.package
 Blocs := .
+
+Bdirs := source linear_algebra_modules
+Bpack += $(foreach dir, $(Bdirs), $(CUVODE_HOME)/$(dir)/Make.package)
+Blocs += $(foreach dir, $(Bdirs), $(CUVODE_HOME)/$(dir))
+
+
+TOP = ../..
 
 include $(TOP)/Exec/Make.Nyx
 

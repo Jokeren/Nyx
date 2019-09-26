@@ -103,6 +103,7 @@ int Nyx::integrate_state_vec_mfin
       const auto lo  = amrex::lbound(tbx);  // lower bound of box
 
       N_Vector u;
+      N_Vector constrain;
       void *cvode_mem;
       realtype t=0.0;
 				
@@ -228,6 +229,12 @@ int Nyx::integrate_state_vec_mfin
       amrex::Gpu::Device::streamSynchronize();
 #endif
 
+#ifdef AMREX_USE_CUDA
+      if(N_VMaxNorm(abstol_vec)/N_VMin(abstol_vec)<100 && false)
+#else
+	if(true)
+#endif
+	{
 #ifdef CV_NEWTON
 				cvode_mem = CVodeCreate(CV_BDF, CV_NEWTON);
 #else
@@ -245,7 +252,6 @@ int Nyx::integrate_state_vec_mfin
 
 				CVodeSetMaxNumSteps(cvode_mem,2000);
 
-				N_Vector constrain;
 				if(use_sundials_constraint)
 				  {
 				    constrain=N_VClone(u);
@@ -263,6 +269,20 @@ int Nyx::integrate_state_vec_mfin
 #ifndef NDEBUG
 				PrintFinalStats(cvode_mem);
 #endif
+	}
+      else
+	{
+      amrex::Gpu::streamSynchronize();
+      //      for(int idx=0;idx<neq;idx++)
+      //	{
+	  AMREX_FOR_1D ( neq, idx, {
+	  //	  do_react_vode(dptr+idx, rparh+4*idx, delta_time);
+	  do_react_cuVODE(dptr+idx, rparh+4*idx, delta_time);
+	  	});
+	  //}
+
+      amrex::Gpu::streamSynchronize();
+	}
 
 #ifdef _OPENMP
 #pragma omp parallel for collapse(3)

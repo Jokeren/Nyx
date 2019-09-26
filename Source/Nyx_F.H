@@ -975,6 +975,8 @@ extern "C"
      const amrex::Real* a, const amrex::Real* delta_time,
      const int* min_iter, const int* max_iter);
 
+  AMREX_GPU_DEVICE void do_react_cuVODE(amrex::Real* u, amrex::Real* rpar, amrex::Real dt);
+
   AMREX_GPU_DEVICE int RhsFnReal(amrex::Real t, amrex::Real* u, amrex::Real* udot, amrex::Real* rpar, int neq);
   AMREX_GPU_DEVICE void fort_ode_eos_finalize(double* e_out, double* rpar, int neq);
   void fort_update_eos(double dt, double* u, double* uout, double* rpar);
